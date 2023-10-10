@@ -1,5 +1,3 @@
-console.log("Hello world!");
-
 /* 
 Assumptions:
 
@@ -16,24 +14,40 @@ not account for ligand mixing; it consists of the cell solution
 instantaneously before the injection takes place.
 
 */
+// Simulation parameters
+var timeStep = 0.01; // in s
+var ticksPerSample = 20;
+
+var concP = 200e-6; // in M
+var concL = 0.0; // in M
+var concPL = 0.0; // in M
 
 // Sample system: Mg2+/EDTA 
 // P = EDTA
 // L = Mg2+
-deltaH = 15; // in kJ/mol
-Kd = 1.78e-6; // in M
 
-concP = 300e-6; // in M
-concLSyringe = 800e-6; // in M
-concL = 0.0; // in M
-concPL = 0.0; // in M
+// System parameters
+var deltaH = 15; // in kJ/mol
+var Kd = 1.78e-6; // in M
+var kOn = 4e3; // in 1/(M*s)
+var kOff = Kd * kOn;
 
-vCell = 250e-6 // in L
+// Experiment parameters
+var concPInitial = 200e-6; // in M
+var concLSyringe = 2000e-6; // in M
 
-kOn = 1e6; // in 1/(M*s)
-kOff = Kd * kOn;
+// Instrument parameters
+const vCell = 250e-6 // in L
+const injectionFlowRate = 2e-6 / 4; // in L/s
+var initialDelay = 60; // in s
+var injectionSpacing = 120; // in s
 
-power = 0.0 // in unknown units
+var injectionCount = 19; // includes initial injection
+var vInjectInitial = 0.4e-6; // in L
+var vInject = 2.0e-6; // in L
+
+// Readouts
+var power = 0.0 // in unknown units
 
 function StepSimulation(dt) {
     dP = -kOn * concP * concL + kOff * concPL;
@@ -44,46 +58,74 @@ function StepSimulation(dt) {
     concL += dL * dt;
     concPL += dPL * dt;
 
-    power = -dPL * 0.5; // arbitrary scaling
+    power = -dPL * 80; // arbitrary scaling
 }
 
-var runData;
-var chartData;
+var totalVolInjected = 0.0;
 
-addEventListener("load", (event) => { });
-onload = (event) => {
-    document.getElementById("status").innerHTML = "Simulating...";
+// Simulates the instantaneous injection of
+// v liters of syringe contents
+// new conc = (total mol - overflow mol) / vCell
+// X_new = (X * vCell - X * v) / vCell;
+function Inject(v) {
+    totalVolInjected += v;
+    dilutionFactor = (vCell - v) / vCell;
+    concP *= dilutionFactor;
+    concL *= dilutionFactor;
+    concPL *= dilutionFactor;
+    concL = (concL * vCell + concLSyringe * v) / vCell;
+}
 
-    var output = document.getElementById("output");
+function DoSimulation() {
     var time = 0;
-
-    var str = "";
+    totalVolInjected = 0.0;
+    concL = 0.0;
+    concP = concPInitial;
+    concPL = 0.0;
 
     runData = [];
 
-    for (var i = 0; i < 120000; i++) {
-        if (i % 5000 < 400 && time < 9.9) {
-            concL += concLSyringe / (20 * 400);
+    totalDuration = initialDelay + injectionCount * injectionSpacing;
+    let totalDurationTicks = totalDuration / timeStep;
+
+    let initialDelayTicks = initialDelay / timeStep;
+    let injectionSpacingTicks = injectionSpacing / timeStep;
+
+    let injectionDuration = vInjectInitial / injectionFlowRate;
+    let injectionDurationTicks = injectionDuration / timeStep;
+
+    for (var tick = 0; tick < totalDurationTicks; tick++) {
+
+        let isAfterInitialDelay = tick - initialDelay / timeStep > 0;
+
+        if (isAfterInitialDelay && (tick - initialDelayTicks) % injectionSpacingTicks == 0) {
+            injectionDuration = vInject / injectionFlowRate;
+            injectionDurationTicks = injectionDuration / timeStep;
         }
 
-        if (i % 50 == 0) {
-            str += time + "\t" + power + "\t" + concP + "\t" + concL + "\t" + concPL + "\n";
+        if (isAfterInitialDelay &&
+            (tick - initialDelayTicks) % injectionSpacingTicks < injectionDurationTicks) {
+            Inject(injectionFlowRate * timeStep);
+        }
+
+        if (tick % ticksPerSample == 0) {
+            //str += time + "\t" + power + "\t" + concP + "\t" + concL + "\t" + concPL + "\n";
             runData.push({ time, power, concP, concL, concPL });
         }
 
-        StepSimulation(0.0001);
-        time += 0.0001;
+        StepSimulation(timeStep);
+        time += timeStep;
     }
 
-    output.innerHTML = str;
 
-    console.log("Total P: " + (concP + concPL));
-    console.log("Total L: " + (concL + concPL));
+    //console.log("Total P: " + (concP + concPL));
+    //console.log("Total L: " + (concL + concPL));
 
-    console.log((concP * concL) / concPL);
+    // console.log((concP * concL) / concPL);
+    console.log("Volume: " + totalVolInjected.toExponential());
+}
 
-    document.getElementById("status").innerHTML = "Done!";
-
+function ChartData() {
     chartData = {
         type: "scatter",
         data: {
@@ -93,10 +135,12 @@ onload = (event) => {
                     data: runData.map(k => ({ x: k.time, y: k.power })),
                     //showLine: true
                 },
+                /*
                 {
                     label: "[P]",
                     data: runData.map(k => ({ x: k.time, y: k.concP })), showLine: true
-                },
+                },*/
+
                 {
                     label: "[L]",
                     data: runData.map(k => ({ x: k.time, y: k.concL })), showLine: true
@@ -115,7 +159,8 @@ onload = (event) => {
             datasets: {
                 scatter: {
                     showLine: true,
-                    pointRadius: 0
+                    pointRadius: 0,
+                    pointHitRadius: 8
                 }
             },
             elements: {
@@ -124,14 +169,53 @@ onload = (event) => {
                     borderWidth: 1
                 }
             },
+            scales: {
+                x: {
+                    ticks: {
+                        stepSize: 60
+                    }
+                }
+            },
             tooltips: false,
             animation: false,
             devicePixelRatio: 4
         }
     }
 
-    var canvas = document.getElementById("canvas");
-    new Chart(canvas,
-        chartData
-    )
+    if (chart == undefined) {
+        chart = new Chart(canvas, chartData);
+    } else {
+        chart.data = chartData.data;
+        chart.update();
+    }
+}
+
+var runData;
+var chartData;
+var chart;
+var canvas;
+var slider;
+
+function HandleSliderChange(value) {
+    kOn = Math.pow(10, value);
+    kOff = Kd * kOn;
+    console.log(kOn);
+
+    console.time("Sim");
+    DoSimulation();
+    console.timeEnd("Sim");
+    console.time("Chart");
+    ChartData();
+    console.timeEnd("Chart");
+}
+
+addEventListener("load", () => { });
+onload = () => {
+    canvas = document.getElementById("canvas");
+    slider = document.getElementById("myRange");
+
+    slider.onchange = (ev) => HandleSliderChange(ev.target.value);
+
+    DoSimulation();
+    ChartData();
 };
