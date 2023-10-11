@@ -194,12 +194,14 @@ var runData;
 var chartData;
 var chart;
 var canvas;
-var slider;
+var kOnInput;
 
 function HandleSliderChange(value) {
-    kOn = Math.pow(10, value);
+    kOn = value;
     kOff = Kd * kOn;
-    console.log(kOn);
+
+    document.getElementById("kOffInput").value = Number(kOff.toPrecision(4)).toExponential();
+    console.log(document.getElementById("kOffInput").value);
 
     console.time("Sim");
     DoSimulation();
@@ -212,9 +214,9 @@ function HandleSliderChange(value) {
 addEventListener("load", () => { });
 onload = () => {
     canvas = document.getElementById("canvas");
-    slider = document.getElementById("myRange");
+    kOnInput = document.getElementById("kOnInput");
 
-    slider.onchange = (ev) => HandleSliderChange(ev.target.value);
+    kOnInput.onchange = (ev) => HandleSliderChange(ev.target.value);
 
     DoSimulation();
     ChartData();
