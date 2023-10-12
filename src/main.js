@@ -200,7 +200,7 @@ function HandleSliderChange(value) {
     kOn = value;
     kOff = Kd * kOn;
 
-    document.getElementById("kOffInput").value = Number(kOff.toPrecision(4)).toExponential();
+    document.getElementById("kOffInput").value = kOff.toPrefixExponential();
     console.log(document.getElementById("kOffInput").value);
 
     console.time("Sim");
@@ -221,3 +221,13 @@ onload = () => {
     DoSimulation();
     ChartData();
 };
+
+// Returns the number as a string formatted as
+// m e 3n
+// where 1 <= m < 1000 and n is an integer
+Number.prototype.toPrefixExponential = function() {
+    let value = this.valueOf();
+    if (value < 1e-6) return (value / 1e-9).toFixed(2) + "e-9";
+    if (value < 1e-3) return (value / 1e-6).toFixed(2) + "e-6";
+    if (value < 1e0) return (value / 1e-3).toFixed(2) + "e-3";
+}

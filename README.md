@@ -1,5 +1,5 @@
 # ITC-Simulator
-A simple isothermal titration calorimetry simulator. Heat is assumed only to be produced by the binding of protein and ligand.
+A simple isothermal titration calorimetry (ITC) simulator. Heat is assumed only to be produced by the binding of protein and ligand.
 
 The simulator uses numerical integration to compute the concentration of species over time. This yields both thermodynamic and kinetic data of an experiment. Output includes graphs of power vs time and heat vs molar ratio.
 
