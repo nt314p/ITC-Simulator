@@ -2,36 +2,39 @@
 <html>
 
 <head>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
-        integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"
-        integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
-        crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct"
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
         crossorigin="anonymous"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"
         integrity="sha512-SIMGYRUjwY8+gKg7nn9EItdD8LCADSDfJNutF9TPrvEo86sQmFMh6MyralfIyhADlajSxqc7G0gs7+MwWF/ogQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="src/main.js"></script>
+    <style>
+        h5.input-header {
+            padding: 6px;
+            padding-top: 18px;
+        }
+    </style>
 </head>
 
 <body>
     <div class="row" style="margin: 10px;">
         <div class="col-3">
-            <h5 style="padding: 6px;">Simulation Parameters</h5>
+
+            <h5 class="input-header">Simulation Settings</h5>
             <div class="container">
                 <div class="row">
                     <div class="col">
                         <label class="form-label">Timestep (s)</label>
                     </div>
                     <div class="col" style="text-align: right;">
-                        <select class="form-select" aria-label="0.01">
-                            <option selected></option>
+                        <select class="form-select form-select-sm" style="width: 80%;" value="0.01" id="timestepInput">
                             <option value="0.001">0.001</option>
                             <option value="0.005">0.005</option>
-                            <option value="0.01">0.01</option>
+                            <option selected value="0.01">0.01</option>
                             <option value="0.05">0.05</option>
                             <option value="0.1">0.1</option>
                             <option value="0.5">0.5</option>
@@ -43,21 +46,21 @@
                         <label class="form-label">Ticks per sample</label>
                     </div>
                     <div class="col" style="text-align: right;">
-                        <input type="number" class="form-range" style="width: 80%;" min="1" max="100" step="1"
-                            value="20" id="ticksPerSampleInput">
+                        <input type="number" class="form-control form-control-sm" style="width: 80%;" min="1" max="100"
+                            step="1" value="20" id="ticksPerSampleInput">
                     </div>
                 </div>
             </div>
 
-            <h5 style="padding: 6px;">System Parameters</h5>
+            <h5 class="input-header">System Settings</h5>
             <div class="container">
                 <div class="row">
                     <div class="col">
                         <label class="form-label">ΔH of rxn (kJ/mol)</label>
                     </div>
                     <div class="col" style="text-align: right;">
-                        <input type="number" class="form-range" style="width: 80%;" min="-100" max="100" value="-15"
-                            step="-0.1" id="deltaHInput">
+                        <input type="number" class="form-control form-control-sm" style="width: 80%;" min="-100"
+                            max="100" value="-15" step="-0.1" id="deltaHInput">
                     </div>
                 </div>
                 <div class="row">
@@ -65,8 +68,8 @@
                         <label class="form-label">K<sub>d</sub> (M)</label>
                     </div>
                     <div class="col" style="text-align: right;">
-                        <input type="number" class="form-range" style="width: 80%;" min="1e-9" max="1e-3" value="1e-6"
-                            step="1e-8" id="KdInput">
+                        <input type="number" class="form-control form-control-sm" style="width: 80%;" min="1e-9"
+                            max="1e-3" value="1e-6" step="1e-8" id="KdInput">
                     </div>
                 </div>
                 <div class="row">
@@ -74,8 +77,8 @@
                         <label class="form-label">k<sub>on</sub> (M<sup>-1</sup>s<sup>-1</sup>)</label>
                     </div>
                     <div class="col" style="text-align: right;">
-                        <input type="number" class="form-range" style="width: 80%;" min="100" max="1e8" value="5e3"
-                            step="100" id="kOnInput">
+                        <input type="number" class="form-control form-control-sm" style="width: 80%;" min="100"
+                            max="1e8" value="5e3" step="100" id="kOnInput">
                     </div>
                 </div>
                 <div class="row">
@@ -83,20 +86,21 @@
                         <label class="form-label">k<sub>off</sub> (s<sup>-1</sup>)</label>
                     </div>
                     <div class="col" style="text-align: right;">
-                        <input type="text" class="form-range" style="width: 80%;" id="kOffInput" disabled readonly>
+                        <input type="text" class="form-control form-control-sm" style="width: 80%;" id="kOffInput"
+                            disabled readonly>
                     </div>
                 </div>
             </div>
 
-            <h5 style="padding: 6px;">Experiment Parameters</h5>
+            <h5 class="input-header">Experiment Settings</h5>
             <div class="container">
                 <div class="row">
                     <div class="col">
                         <label class="form-label">[Syringe] (M)</label>
                     </div>
                     <div class="col" style="text-align: right;">
-                        <input type="number" class="form-range" style="width: 80%;" min="1e-9" max="1e-3" value="1e-6"
-                            step="1e-8" id="concLInput">
+                        <input type="number" class="form-control form-control-sm" style="width: 80%;" min="1e-9"
+                            max="1e-3" value="1e-6" step="1e-8" id="concSyringeInput">
                     </div>
                 </div>
                 <div class="row">
@@ -104,25 +108,63 @@
                         <label class="form-label">[Cell] (M)</label>
                     </div>
                     <div class="col" style="text-align: right;">
-                        <input type="number" class="form-range" style="width: 80%;" min="1e-9" max="1e-3" value="1e-6"
-                            step="1e-6" id="concPInput">
+                        <input type="number" class="form-control form-control-sm" style="width: 80%;" min="1e-9"
+                            max="1e-3" value="1e-6" step="1e-6" id="concCellInitialInput">
                     </div>
                 </div>
             </div>
 
-            <!--
-            <div class="d-flex align-items-center">
+            <h5 class="input-header">Injection Settings</h5>
+            <div class="container">
+                <div class="row">
+                    <div class="col">
+                        <label class="form-label">Initial delay (s)</label>
+                    </div>
+                    <div class="col" style="text-align: right;">
+                        <input type="number" class="form-control form-control-sm" style="width: 80%;" min="0"
+                            max="3600" value="60" step="1" id="initialDelayInput">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <label class="form-label">Injection spacing (s)</label>
+                    </div>
+                    <div class="col" style="text-align: right;">
+                        <input type="number" class="form-control form-control-sm" style="width: 80%;" min="0"
+                            max="3600" value="120" step="1" id="injectionSpacingInput">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <label class="form-label">Injection count</label>
+                    </div>
+                    <div class="col" style="text-align: right;">
+                        <input type="number" class="form-control form-control-sm" style="width: 80%;" min="1"
+                            max="20" value="19" step="1" id="injectionCountInput">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <label class="form-label">Initial injection volume (L)</label>
+                    </div>
+                    <div class="col" style="text-align: right;">
+                        <input type="number" class="form-control form-control-sm" style="width: 80%;" min="0"
+                            max="4e-6" value="0.4e-6" step="0.1e-6" id="vInjectInitialInput">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <label class="form-label">General injection volume (L)</label>
+                    </div>
+                    <div class="col" style="text-align: right;">
+                        <input type="number" class="form-control form-control-sm" style="width: 80%;" min="0"
+                            max="4e-6" value="2e-6" step="0.1e-6" id="vInjectInput">
+                    </div>
+                </div>
             </div>
-            <div class="d-flex align-items-center">
-                <label for="kOnRange" class="form-label" style="margin-right: 6px;">k<sub>on</sub></label>
-                <input type="text" class="form-range" min="1.0" max="6.0" value="3.5" step="0.05" id="kOnRange">
-            </div>-->
-
-
-
 
         </div>
-        <div class="col-9">
+        <div class="col-9" style="padding: 0px;">
             <canvas id="canvas"></canvas>
         </div>
     </div>

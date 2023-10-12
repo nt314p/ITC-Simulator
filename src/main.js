@@ -15,7 +15,7 @@ instantaneously before the injection takes place.
 
 */
 // Simulation parameters
-var timeStep = 0.01; // in s
+var timestep = 0.01; // in s
 var ticksPerSample = 20;
 
 var concP = 200e-6; // in M
@@ -33,8 +33,8 @@ var kOn = 4e3; // in 1/(M*s)
 var kOff = Kd * kOn;
 
 // Experiment parameters
-var concPInitial = 200e-6; // in M
-var concLSyringe = 2000e-6; // in M
+var concCellInitial = 200e-6; // in M
+var concSyringe = 2000e-6; // in M
 
 // Instrument parameters
 const vCell = 250e-6 // in L
@@ -73,39 +73,43 @@ function Inject(v) {
     concP *= dilutionFactor;
     concL *= dilutionFactor;
     concPL *= dilutionFactor;
-    concL = (concL * vCell + concLSyringe * v) / vCell;
+    concL = (concL * vCell + concSyringe * v) / vCell;
 }
 
 function DoSimulation() {
+    console.time("Sim");
+
     var time = 0;
     totalVolInjected = 0.0;
     concL = 0.0;
-    concP = concPInitial;
+    concP = concCellInitial;
     concPL = 0.0;
 
     runData = [];
 
     totalDuration = initialDelay + injectionCount * injectionSpacing;
-    let totalDurationTicks = totalDuration / timeStep;
+    let totalDurationTicks = totalDuration / timestep;
 
-    let initialDelayTicks = initialDelay / timeStep;
-    let injectionSpacingTicks = injectionSpacing / timeStep;
+    let initialDelayTicks = initialDelay / timestep;
+    let injectionSpacingTicks = injectionSpacing / timestep;
 
     let injectionDuration = vInjectInitial / injectionFlowRate;
-    let injectionDurationTicks = injectionDuration / timeStep;
+    let injectionDurationTicks = injectionDuration / timestep;
+
+    console.log({ totalDurationTicks });
 
     for (var tick = 0; tick < totalDurationTicks; tick++) {
 
-        let isAfterInitialDelay = tick - initialDelay / timeStep > 0;
+        let isAfterInitialDelay = tick - initialDelay / timestep > 0;
 
         if (isAfterInitialDelay && (tick - initialDelayTicks) % injectionSpacingTicks == 0) {
             injectionDuration = vInject / injectionFlowRate;
-            injectionDurationTicks = injectionDuration / timeStep;
+            injectionDurationTicks = injectionDuration / timestep;
         }
 
         if (isAfterInitialDelay &&
             (tick - initialDelayTicks) % injectionSpacingTicks < injectionDurationTicks) {
-            Inject(injectionFlowRate * timeStep);
+            Inject(injectionFlowRate * timestep);
         }
 
         if (tick % ticksPerSample == 0) {
@@ -113,10 +117,11 @@ function DoSimulation() {
             runData.push({ time, power, concP, concL, concPL });
         }
 
-        StepSimulation(timeStep);
-        time += timeStep;
+        StepSimulation(timestep);
+        time += timestep;
     }
 
+    console.timeEnd("Sim");
 
     //console.log("Total P: " + (concP + concPL));
     //console.log("Total L: " + (concL + concPL));
@@ -203,18 +208,64 @@ function HandleSliderChange(value) {
     document.getElementById("kOffInput").value = kOff.toPrefixExponential();
     console.log(document.getElementById("kOffInput").value);
 
-    console.time("Sim");
     DoSimulation();
-    console.timeEnd("Sim");
     console.time("Chart");
     ChartData();
     console.timeEnd("Chart");
 }
 
+// Driver parameters set the internal variables based on the input
+// These parameters require no additional intervention
+const driverSimParameterNames = [
+    "timestep",
+    "ticksPerSample",
+    "concCellInitial",
+    "concSyringe",
+    "initialDelay",
+    "injectionSpacing",
+    "injectionCount",
+    "vInjectInitial",
+    "vInject"
+];
+
+// These parameters require functions to run when they are set
+const driverSimParameterNamesSpecial = [
+    "deltaH", // calculate thermodynamic params
+    "Kd", // calculate thermodynamic params
+    "kOn", // calculate kOff
+];
+
+// Driven parameters are used to display internal variables to the user
+const drivenSimParameterNames = [
+    "kOff",
+];
+
+
+const allSimParameterNames = driverSimParameterNames.concat(driverSimParameterNamesSpecial, drivenSimParameterNames);
+
+function InitializeInputs() {
+    allSimParameterNames.forEach(inputName => {
+        var inputId = inputName + "Input"; // definitely not cursed reflection
+        this[inputId] = document.getElementById(inputId);
+    });
+
+    driverSimParameterNames.forEach(inputName => {
+        var inputId = inputName + "Input";
+        this[inputId].onchange = (ev) => UpdateSimParameter(inputName, ev.target.value);
+    });
+}
+
+function UpdateSimParameter(paramName, value) {
+    this[paramName] = Number(value);
+    DoSimulation();
+    ChartData();
+}
+
 addEventListener("load", () => { });
 onload = () => {
     canvas = document.getElementById("canvas");
-    kOnInput = document.getElementById("kOnInput");
+    //kOnInput = document.getElementById("kOnInput");
+    InitializeInputs();
 
     kOnInput.onchange = (ev) => HandleSliderChange(ev.target.value);
 
@@ -225,7 +276,7 @@ onload = () => {
 // Returns the number as a string formatted as
 // m e 3n
 // where 1 <= m < 1000 and n is an integer
-Number.prototype.toPrefixExponential = function() {
+Number.prototype.toPrefixExponential = function () {
     let value = this.valueOf();
     if (value < 1e-6) return (value / 1e-9).toFixed(2) + "e-9";
     if (value < 1e-3) return (value / 1e-6).toFixed(2) + "e-6";
