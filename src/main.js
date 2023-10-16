@@ -47,18 +47,17 @@ var vInjectInitial = 0.4e-6; // in L
 var vInject = 2.0e-6; // in L
 
 // Readouts
-var power = 0.0 // in unknown units
+var power = 0.0; // in unknown units
 
 function StepSimulation(dt) {
-    dP = -kOn * concP * concL + kOff * concPL;
-    dL = dP;//-kOn * concP * concL + kOff * concPL;
-    dPL = -kOff * concPL + kOn * concP * concL;
+    const dP = -kOn * concP * concL + kOff * concPL;
+    const deltaP = dP * dt;
 
-    concP += dP * dt;
-    concL += dL * dt;
-    concPL += dPL * dt;
+    concP += deltaP;
+    concL += deltaP;
+    concPL -= deltaP;
 
-    power = -dPL * 80; // arbitrary scaling
+    power = dP * 80; // arbitrary scaling
 }
 
 var totalVolInjected = 0.0;
@@ -67,17 +66,20 @@ var totalVolInjected = 0.0;
 // v liters of syringe contents
 // new conc = (total mol - overflow mol) / vCell
 // X_new = (X * vCell - X * v) / vCell;
+// X_new = X - X * (v / vCell)
 function Inject(v) {
     totalVolInjected += v;
-    dilutionFactor = (vCell - v) / vCell;
-    concP *= dilutionFactor;
-    concL *= dilutionFactor;
-    concPL *= dilutionFactor;
+    dilutionFactor = v / vCell;
+    concP -= concP * dilutionFactor;
+    concL -= concL * dilutionFactor;
+    concPL -= concPL * dilutionFactor;
     concL = (concL * vCell + concSyringe * v) / vCell;
 }
 
+var runData;
+
 function DoSimulation() {
-    console.time("Sim");
+    console.time("Simulation");
 
     var time = 0;
     totalVolInjected = 0.0;
@@ -85,7 +87,6 @@ function DoSimulation() {
     concP = concCellInitial;
     concPL = 0.0;
 
-    runData = [];
 
     totalDuration = initialDelay + injectionCount * injectionSpacing;
     let totalDurationTicks = totalDuration / timestep;
@@ -96,7 +97,10 @@ function DoSimulation() {
     let injectionDuration = vInjectInitial / injectionFlowRate;
     let injectionDurationTicks = injectionDuration / timestep;
 
+    runData = new Array(Math.floor(totalDurationTicks / ticksPerSample));
     console.log({ totalDurationTicks });
+
+    var index = 0;
 
     for (var tick = 0; tick < totalDurationTicks; tick++) {
 
@@ -114,23 +118,23 @@ function DoSimulation() {
 
         if (tick % ticksPerSample == 0) {
             //str += time + "\t" + power + "\t" + concP + "\t" + concL + "\t" + concPL + "\n";
-            runData.push({ time, power, concP, concL, concPL });
+            runData[index] = ({ time, power, concP, concL, concPL });
+            index++;
         }
 
         StepSimulation(timestep);
         time += timestep;
     }
 
-    console.timeEnd("Sim");
-
-    //console.log("Total P: " + (concP + concPL));
-    //console.log("Total L: " + (concL + concPL));
-
-    // console.log((concP * concL) / concPL);
-    console.log("Volume: " + totalVolInjected.toExponential());
+    console.timeEnd("Simulation");
 }
 
+var chartData;
+var chart;
+var canvas;
+
 function ChartData() {
+    console.time("Graph");
     chartData = {
         type: "scatter",
         data: {
@@ -138,7 +142,6 @@ function ChartData() {
                 {
                     label: "Power",
                     data: runData.map(k => ({ x: k.time, y: k.power })),
-                    //showLine: true
                 },
                 /*
                 {
@@ -148,14 +151,13 @@ function ChartData() {
 
                 {
                     label: "[L]",
-                    data: runData.map(k => ({ x: k.time, y: k.concL })), showLine: true
+                    data: runData.map(k => ({ x: k.time, y: k.concL }))
                 },
                 {
                     label: "[PL]",
-                    data: runData.map(k => ({ x: k.time, y: k.concPL })), showLine: true
+                    data: runData.map(k => ({ x: k.time, y: k.concPL }))
                 }
             ],
-
         },
         options: {
             interaction: {
@@ -181,6 +183,9 @@ function ChartData() {
                     }
                 }
             },
+            // spanGaps: true,
+            // showLine: false,
+            parsing: false,
             tooltips: false,
             animation: false,
             devicePixelRatio: 4
@@ -193,25 +198,69 @@ function ChartData() {
         chart.data = chartData.data;
         chart.update();
     }
+    console.timeEnd("Graph");
 }
 
-var runData;
-var chartData;
-var chart;
-var canvas;
-var kOnInput;
+class Input {
+    constructor(paramName, isDriver) {
+        this.paramName = paramName;
+        this.inputElement = document.getElementById(Input.ParamToInputName(paramName));
+        this.useSIFormatting = this.inputElement.attributes.hasOwnProperty("sivalue");
+        this.isDriver = isDriver;
+        this.inputElement.oninput = (ev) => this.HandleRangeFormatting(ev.target.value);
+        if (isDriver) {
+            this.inputElement.onchange = (ev) => this.HandleRangeUpdate(ev.target.value);
+        }
+        this.inputElement.onblur = (ev) => this.FormatRange(ev.target.value);
+        //this.internalValue = Number(inputElement.value);
+    }
 
-function HandleSliderChange(value) {
+    FormatRange(value) {
+        if (!this.useSIFormatting) return;
+        var num = Number(value);
+        if (this.useSIFormatting) num = num.toPrefixExponential();
+        //this.internalValue = va
+
+        console.log("the element isn't focused so im overwriting its value LOL");
+        this.inputElement.value = num;
+    }
+
+    HandleRangeFormatting(value) {
+        if (this.IsFocused()) return;
+
+        this.FormatRange(value); 
+    }
+
+    HandleRangeUpdate(value) {
+        this.FormatRange(value);
+
+        // TODO: could cause problems with precision
+        // number is not exactly the same with SI formatting due to fixed rounding
+        window[this.paramName] = Number(value); 
+
+        DoSimulation();
+        ChartData();
+    }
+
+    IsFocused() {
+        console.log(document.activeElement, this.inputElement);
+        return this.inputElement == document.activeElement;
+    }
+
+    static ParamToInputName(paramName) {
+        return paramName + "Input";
+    }
+}
+
+
+function HandleKOnInput(value) {
     kOn = value;
     kOff = Kd * kOn;
 
     document.getElementById("kOffInput").value = kOff.toPrefixExponential();
-    console.log(document.getElementById("kOffInput").value);
 
     DoSimulation();
-    console.time("Chart");
     ChartData();
-    console.timeEnd("Chart");
 }
 
 // Driver parameters set the internal variables based on the input
@@ -250,15 +299,8 @@ function InitializeInputs() {
     });
 
     driverSimParameterNames.forEach(inputName => {
-        var inputId = inputName + "Input";
-        this[inputId].onchange = (ev) => UpdateSimParameter(inputName, ev.target.value);
+        new Input(inputName, true);
     });
-}
-
-function UpdateSimParameter(paramName, value) {
-    this[paramName] = Number(value);
-    DoSimulation();
-    ChartData();
 }
 
 addEventListener("load", () => { });
@@ -267,7 +309,7 @@ onload = () => {
     //kOnInput = document.getElementById("kOnInput");
     InitializeInputs();
 
-    kOnInput.onchange = (ev) => HandleSliderChange(ev.target.value);
+    kOnInput.onchange = (ev) => HandleKOnInput(ev.target.value);
 
     DoSimulation();
     ChartData();
@@ -281,4 +323,5 @@ Number.prototype.toPrefixExponential = function () {
     if (value < 1e-6) return (value / 1e-9).toFixed(2) + "e-9";
     if (value < 1e-3) return (value / 1e-6).toFixed(2) + "e-6";
     if (value < 1e0) return (value / 1e-3).toFixed(2) + "e-3";
+    return value.toFixed(2);
 }
