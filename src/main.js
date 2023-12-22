@@ -76,7 +76,8 @@ function Inject(v) {
     concL = (concL * vCell + concSyringe * v) / vCell;
 }
 
-var runData;
+var rawData;
+var heatData;
 
 function DoSimulation() {
     console.time("Simulation");
@@ -87,7 +88,6 @@ function DoSimulation() {
     concP = concCellInitial;
     concPL = 0.0;
 
-
     totalDuration = initialDelay + injectionCount * injectionSpacing;
     let totalDurationTicks = totalDuration / timestep;
 
@@ -97,7 +97,7 @@ function DoSimulation() {
     let injectionDuration = vInjectInitial / injectionFlowRate;
     let injectionDurationTicks = injectionDuration / timestep;
 
-    runData = new Array(Math.floor(totalDurationTicks / ticksPerSample));
+    rawData = new Array(Math.floor(totalDurationTicks / ticksPerSample));
     console.log({ totalDurationTicks });
 
     var index = 0;
@@ -118,7 +118,7 @@ function DoSimulation() {
 
         if (tick % ticksPerSample == 0) {
             //str += time + "\t" + power + "\t" + concP + "\t" + concL + "\t" + concPL + "\n";
-            runData[index] = ({ time, power, concP, concL, concPL });
+            rawData[index] = ({ time, power, concP, concL, concPL });
             index++;
         }
 
@@ -129,33 +129,63 @@ function DoSimulation() {
     console.timeEnd("Simulation");
 }
 
-var chartData;
-var chart;
-var canvas;
+function DoIntegration() {
+    let timePerSample = timestep * ticksPerSample;
+
+    totalDuration = initialDelay + injectionCount * injectionSpacing;
+    let totalSamples = totalDuration / timePerSample;
+
+    let initialDelaySamples = initialDelay / timePerSample;
+    let injectionSpacingSamples = injectionSpacing / timePerSample;
+
+    let injectionDuration = vInjectInitial / injectionFlowRate;
+    let injectionDurationTicks = injectionDuration / timePerSample;
+
+    console.log({ totalSamples });
+
+    heatData = [];
+
+    let moles = concSyringe * vInjectInitial;
+
+    for (var sampleIndex = initialDelaySamples; sampleIndex < totalSamples;) {
+        let heat = 0;
+        for (var i = 0; i < injectionSpacingSamples; i++) {
+            //console.log("Time: " + timePerSample * sampleIndex);
+            heat += rawData[sampleIndex].power / timePerSample; // TODO: fix integration because very sensitive to timestep
+            // trapezoidal??
+            sampleIndex++;
+        }
+        console.log({ moles, heat });
+        heatData.push({ moles: moles / (concCellInitial * vCell), heat });
+        moles += concSyringe * vInject;
+    }
+}
+
+var rawChart;
+var heatChart;
 
 function ChartData() {
     console.time("Graph");
-    chartData = {
+    let rawChartData = {
         type: "scatter",
         data: {
             datasets: [
                 {
                     label: "Power",
-                    data: runData.map(k => ({ x: k.time, y: k.power })),
+                    data: rawData.map(k => ({ x: k.time, y: k.power })),
                 },
                 /*
                 {
                     label: "[P]",
                     data: runData.map(k => ({ x: k.time, y: k.concP })), showLine: true
                 },*/
-
                 {
                     label: "[L]",
-                    data: runData.map(k => ({ x: k.time, y: k.concL }))
+                    data: rawData.map(k => ({ x: k.time, y: k.concL }))
                 },
                 {
                     label: "[PL]",
-                    data: runData.map(k => ({ x: k.time, y: k.concPL }))
+                    data: rawData.map(k => ({ x: k.time, y: k.concPL }))
                 }
             ],
         },
@@ -190,13 +220,45 @@ function ChartData() {
             animation: false,
             devicePixelRatio: 4
         }
+    };
+
+    let heatChartData = {
+        type: "scatter",
+        data: {
+            datasets: [
+                {
+                    label: "Heat",
+                    data: heatData.map(k => ({ x: k.moles, y: k.heat })),
+                },
+            ],
+        },
+        options: {
+            interaction: {
+                mode: 'nearest',
+            },
+            datasets: {
+                scatter: {
+                    pointHitRadius: 8
+                }
+            },
+            tooltips: false,
+            animation: false,
+            devicePixelRatio: 4
+        }
     }
 
-    if (chart == undefined) {
-        chart = new Chart(canvas, chartData);
+    if (rawChart == undefined) {
+        rawChart = new Chart(document.getElementById("rawCanvas"), rawChartData);
     } else {
-        chart.data = chartData.data;
-        chart.update();
+        rawChart.data = rawChartData.data;
+        rawChart.update();
+    }
+
+    if (heatChart == undefined) {
+        heatChart = new Chart(document.getElementById("heatCanvas"), heatChartData);
+    } else {
+        heatChart.data = heatChartData.data;
+        heatChart.update();
     }
     console.timeEnd("Graph");
 }
@@ -228,7 +290,7 @@ class Input {
     HandleRangeFormatting(value) {
         if (this.IsFocused()) return;
 
-        this.FormatRange(value); 
+        this.FormatRange(value);
     }
 
     HandleRangeUpdate(value) {
@@ -236,9 +298,10 @@ class Input {
 
         // TODO: could cause problems with precision
         // number is not exactly the same with SI formatting due to fixed rounding
-        window[this.paramName] = Number(value); 
+        window[this.paramName] = Number(value);
 
         DoSimulation();
+        DoIntegration();
         ChartData();
     }
 
@@ -260,6 +323,7 @@ function HandleKOnInput(value) {
     document.getElementById("kOffInput").value = kOff.toPrefixExponential();
 
     DoSimulation();
+    DoIntegration();
     ChartData();
 }
 
@@ -305,13 +369,13 @@ function InitializeInputs() {
 
 addEventListener("load", () => { });
 onload = () => {
-    canvas = document.getElementById("canvas");
     //kOnInput = document.getElementById("kOnInput");
     InitializeInputs();
 
     kOnInput.onchange = (ev) => HandleKOnInput(ev.target.value);
 
     DoSimulation();
+    DoIntegration();
     ChartData();
 };
 
